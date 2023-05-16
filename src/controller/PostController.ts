@@ -6,7 +6,7 @@ import { ZodError } from "zod"
 import { CreatePostSchema } from "../dtos/post/createPost.dto"
 import { EditPostSchema } from "../dtos/post/editPost.dto"
 import { DeletePostSchema } from "../dtos/post/deletePost.dto"
-import { LikeOrDislikePorstSchema, LikeOrDislikePostSchema } from "../dtos/post/likeOrDislike.dto"
+import { LikeOrDislikePostSchema } from "../dtos/post/likeOrDislike.dto"
 
 export class PostController {
   constructor(
@@ -16,7 +16,9 @@ export class PostController {
   public getPost = async (req: Request, res: Response) => {
     try {
       const input = GetPostSchema.parse({
-        q: req.query.q
+     //  name: req.body.name,
+       token: req.headers.authorization
+        // q: req.query.q
       })
 
       const output = await this.postBusiness.getPost(input)
@@ -40,8 +42,9 @@ export class PostController {
 
       const input = CreatePostSchema.parse({
         // id: req.body.id,
-        name: req.body.name,
-        token: req.body.token
+        content: req.body.content,
+        //token: req.body.token
+        token: req.headers.authorization
       })
 
       const output = await this.postBusiness.createPost(input)
@@ -65,8 +68,8 @@ export class PostController {
     try {
 
       const input = EditPostSchema.parse({
-        idToEdit: req.body.idToEdit,
-        name: req.body.name,
+        idToEdit: req.params.id,
+        content: req.body.content,
         token: req.headers.authorization
       })
 
@@ -91,8 +94,8 @@ export class PostController {
     try {
 
       const input = DeletePostSchema.parse({
-        idToDelete: req.body.idToDelete,
-        name: req.body.name,
+        idToDelete: req.body.id,
+        content: req.body.content,
         token: req.headers.authorization
       })
 
@@ -117,8 +120,8 @@ export class PostController {
     try {
 
       const input = LikeOrDislikePostSchema.parse({
-        idToDelete: req.body.idToDelete,
-        name: req.body.name,
+        postId: req.body.id,
+        like: req.body.like,
         token: req.headers.authorization
       })
 

@@ -1,35 +1,59 @@
 export interface PostDB {
   id: string,
   creator_id : string, 
-  content : string,
-  likes: number,
   dislikes: number,
+  likes: number,
+  content : string,
+  created_at: string,
   update_at : string,
-  createdAt: string
 }
 
 // é o modelo de Product que o front receberá (createdAt camelCase)
 export interface PostModel {
   id: string,
-  creator_id : string, 
-  content : string,
-  likes: number,
   dislikes: number,
+  likes: number,
+  content : string,
+  created_at: string,
   update_at : string,
-  createdAt: string
+  creator: {
+    id: string,
+    name: string
+  }
 }
+
+export enum POST_LIKE{
+ALREDY_LIKED = "ALREDY LIKED",
+ALREDY_DISLIKED = "ALREDY DISLIKED"
+}
+
 
 export interface PostDBWhitCreatorName {
     id: string,
     creator_id : string, 
-    content : string,
-    likes: number,
     dislikes: number,
+    likes: number,
+    content : string,
+    created_at: string,
     update_at : string,
-    createdAt: string
     creator_name: string
   }
   
+
+  export interface PostDTOS {
+    id: string,
+    creator_id : string, 
+    dislikes: number,
+    likes: number,
+    content : string,
+    created_at: string,
+    update_at : string,
+    creator_name: string
+  }
+  
+
+
+
 
   export interface LikeDislikeDB{
       user_id: string,
@@ -37,15 +61,16 @@ export interface PostDBWhitCreatorName {
       like: number
   }   
 
+  
     export class Post {
         constructor(
             private id: string,
-            private content: string,
-            private likes: number,
+            private creator_id: string,
             private dislikes: number,
+            private likes: number,
+            private content: string,
             private createdAt: string,
             private updateAt: string,
-            private creator_id: string,
             private creator_name: string,
             
             ) {}
@@ -120,22 +145,29 @@ export interface PostDBWhitCreatorName {
             this.likes++
         }
 
-        public addDislike = (): void  => {
+        public removeLike = (): void  => {
             this.likes--
         }
 
- 
-
+       
+        public addDisLike = (): void  => {
+            this.likes--
+        }
+        
+        public removeDisLike = (): void  => {
+            this.likes--
+        }
+        
     // para facilitar nossa vida, temos o método que gera um ProductDB
     public toDBModel(): PostDB {
         return {
             id: this.id,
             creator_id : this.creator_id, 
-            content :  this.content,
-            likes: this.likes,
             dislikes: this.dislikes,
+            likes: this.likes,
+            created_at: this.createdAt,       
+            content :  this.content,
             update_at : this.updateAt,
-            createdAt: this.createdAt       
             }
     }
 
@@ -143,12 +175,26 @@ export interface PostDBWhitCreatorName {
     public toBusinessModel(): PostModel {
         return {
             id: this.id,
-            creator_id : this.creator_id, 
-            content :  this.content,
-            likes: this.likes,
             dislikes: this.dislikes,
+            likes: this.likes,
+            content :  this.content,
+            created_at: this.createdAt,
             update_at : this.updateAt,
-            createdAt: this.createdAt       
+            creator: {
+                id: this.creator_id,
+                name: this.creator_name
+            }       
             }
     }
 }
+
+
+/*
+id TEXT PRIMARY KEY UNIQUE NOT NULL,
+creator_id TEXT UNIQUE NOT NULL,
+dislikes INTEGER DEFAULT (0) NOT NULL, 
+likes INTEGER DEFAULT (0) NOT NULL, 
+content TEXT NOT NULL,  
+createdAt TEXT DEFAULT (DATETIME()) NOT NULL,
+update_at
+*/

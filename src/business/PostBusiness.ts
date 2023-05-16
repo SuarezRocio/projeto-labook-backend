@@ -6,11 +6,15 @@ import { GetPostOutputDTO, GetPostInputDTO } from "../dtos/post/getPost.dto"
 import { LikeOrDislikeInputDTO, LikeOrDislikeOuputDTO } from "../dtos/post/likeOrDislike.dto"
 import { BadRequestError } from "../errors/BadRequestError"
 import { NotFoundError } from "../errors/NotFoundError"
-import { LikeDislikeDB, Post } from "../models/Post"
+import { UnathorizedError } from "../errors/UnauthorizedError"
+import { LikeDislikeDB, POST_LIKE } from "../models/Post"
 import { IdGenerator } from "../services/IdGenerator"
 import { TokenManager } from "../services/TokenManager"
+import {Post, PostDB} from "../models/Post"
+import { ForbiddenError } from "../errors/ForbiddenError"
+import { USER_ROLES } from "../models/User"
 
-export class ProductBusiness {
+export class PostBusiness {
   constructor(
     private postDatabase: PostDatabase,
     private idGenerator: IdGenerator,
@@ -25,26 +29,40 @@ export class ProductBusiness {
     const payload = this.tokenManager.getPayload(token)
 
     if (payload === null) {
-      throw new BadRequestError("Token inválido.")
+      throw new UnathorizedError("Token inválido.")
     }
 
-    const postDadosDB = await this.postDatabase.getPostDBWhitCreatorName()
+    const postDBWhitCreatorName = await this.postDatabase.getPostDBWhitCreatorName()
 
-    const postsDB = postDadosDB
-      .map((postDB) => {
-        const postDB = new Post(
-          postDB.id,
-          postDB.createdAt,
-          postDB.creator_name,
-          postDB.dislikes,
-          postDB.likes,
-          postDB.update_at,
-          postDB.content
+
+    //pasamos los datos para generar una instancia para generar una instancia y asi 
+    //poder generar postModel
+    const postajesDB = postDBWhitCreatorName
+      .map((PostDBWhitCreatorName) => {
+        const postajesDB = new Post (
+          PostDBWhitCreatorName.id,
+          PostDBWhitCreatorName.creator_id,
+          PostDBWhitCreatorName.dislikes,
+          PostDBWhitCreatorName.likes,
+          PostDBWhitCreatorName.content,
+          PostDBWhitCreatorName.created_at,
+          PostDBWhitCreatorName.update_at,
+          PostDBWhitCreatorName.creator_name
         )
-        return postDB.toBusinessModel()
+        return postajesDB.toBusinessModel()
       })
 
-    const output: GetPostOutputDTO = postsDB
+      /**
+            private id: string,
+            private creator_id: string,
+            private dislikes: number,
+            private likes: number,
+            private content: string,
+            private createdAt: string,
+            private updateAt: string,
+            private creator_name: string, */
+
+    const output: GetPostOutputDTO = postajesDB
 
     return output
   }
@@ -53,33 +71,66 @@ export class ProductBusiness {
   public editPost = async (
     input: EditPostInputDTO
   ): Promise<EditPostOutputDTO> => {
-    const { token, name, idToEdit } = input
+    const {idToEdit,  token } = input
 
+
+    
     const payload = this.tokenManager.getPayload(token)
+    
+    if(!payload){
+      throw new UnathorizedError()
+    }
 
     if (payload === null) {
       throw new BadRequestError("Token inválido.")
     }
 
-    const postDadosDB = await this.postDatabase.findPostById(idToEdit)
-
-    if (!postDadosDB) {
+    const PostDB = await this.postDatabase.findPostById(idToEdit)
+    console.log(PostDB)
+    if (!PostDB) {
       throw new NotFoundError("post com esse id nao existe")
     }
+
+    if(payload.id !== PostDB.creator_id){
+      throw new ForbiddenError("soamente que crio o post pode editarlo")
+    }
+
+    
 
     /* if(payload.id !== postDadosDB.creator_id){
        throw new Error ForbidEnError("soamente que crio o post pode editarlo")
      }*/
 
-    const post = new PostDB {
-      postDadosDB.id,
-      postDadosDB.createdAt,
-      postDadosDB.creator_name,
-      postDadosDB.dislikes,
-      postDadosDB.likes,
-      postDadosDB.update_at,
-      postDadosDB.content
+    const post = new Post {
+      PostDB.id,
+      PostDB.creator_id,
+      PostDB.dislikes,
+      PostDB.likes,
+      PostDB.content,
+      PostDB.created_at,
+      PostDB.update_at,
+      payload.name
     }
+
+    
+
+/**  id: string,
+  creator_id : string, 
+  dislikes: number,
+  likes: number,
+  content : string,
+  createdAt: string,
+  update_at : string,*/
+
+    /**
+    id TEXT PRIMARY KEY UNIQUE NOT NULL,
+    creator_id TEXT UNIQUE NOT NULL,
+    dislikes INTEGER DEFAULT (0) NOT NULL, 
+    likes INTEGER DEFAULT (0) NOT NULL, 
+    content TEXT NOT NULL,  
+    createdAt TEXT DEFAULT (DATETIME()) NOT NULL,
+    update_at */
+    post.setName(name)
 
 
     const updatePostDB = post.toDBModel()
@@ -104,6 +155,12 @@ export class ProductBusiness {
       throw new BadRequestError("Token inválido.")
     }
 
+    /*if(payload.role !== USER_ROLES.ADMIN){
+    if(payload.id !== PostDTOS.creator_id){
+      throw new Error ForbiddenError("soamente que crio o post pode editarlo")
+    }
+    }*/
+
     const postDadosDB = await this.postDatabase.findPostById(idToDelete)
 
     /*if(!payload){
@@ -114,23 +171,7 @@ export class ProductBusiness {
       throw new NotFoundError("post com esse id nao existe")
     }
 
-    /* if(payload.id !== postDadosDB.creator_id){
-       throw new Error ForbidEnError("soamente que crio o post pode editarlo")
-     }*/
-
-    const post = new PostDB {
-      postDadosDB.id,
-      postDadosDB.createdAt,
-      postDadosDB.creator_name,
-      postDadosDB.dislikes,
-      postDadosDB.likes,
-      postDadosDB.update_at,
-      postDadosDB.content
-    }
-
-
-    const updatePostDB = post.toDBModel()
-    await this.postDatabase.updatePost(updatePostDB)
+    await this.postDatabase.deletePostById(idToDelete)
 
 
     const output: DeletePostOutputDTO = undefined
@@ -174,16 +215,45 @@ export class ProductBusiness {
 
     const posts = new Post{
       postDBWhitCreatorName.id,
-      postDBWhitCreatorName.name,
-      postDBWhitCreatorName.createdAt,
-      postDBWhitCreatorName.update_at,
-      postDBWhitCreatorName.creator_name,
       postDBWhitCreatorName.creator_id,
+      postDBWhitCreatorName.dislikes,
       postDBWhitCreatorName.likes,
-      postDBWhitCreatorName.dislikes
+      postDBWhitCreatorName.content,
+      postDBWhitCreatorName.created_at,
+      postDBWhitCreatorName.update_at,
+      postDBWhitCreatorName.creator_name
     }
+/**
+            private id: string,
+            private creator_id: string,
+            private dislikes: number,
+            private likes: number,
+            private content: string,
+            private createdAt: string,
+            private updateAt: string,
+            private creator_name: string, */
 
-    const likeSQLlite = like ? 1 : 0
+
+    /**
+      /**
+            private id: string,
+            private creator_id: string,
+            private dislikes: number,
+            private likes: number,
+            private content: string,
+            private createdAt: string,
+            private updateAt: string,
+            private creator_name: string, */ 
+/**
+    id TEXT PRIMARY KEY UNIQUE NOT NULL,
+    creator_id TEXT UNIQUE NOT NULL,
+    dislikes INTEGER DEFAULT (0) NOT NULL, 
+    likes INTEGER DEFAULT (0) NOT NULL, 
+    content TEXT NOT NULL,  
+    createdAt TEXT DEFAULT (DATETIME()) NOT NULL,
+    update_at */
+   
+    const likeSQLlite = likes ? 1 : 0
 
 
     const likeOrDislike: LikeDislikeDB = {
@@ -193,34 +263,34 @@ export class ProductBusiness {
     }
 
     const likeDislikesExits =
-      await this.postDatabase.findDislikeLike(likeDislikesExits)
+      await this.postDatabase.findDislikeLike(likeOrDislike)
 
-    if (likeDislikesExits === POST_LIKE.ALREADY_LIKED) {
-      if (like) {
-        await this.postDatabase.removeLikeDislike(likesDislikeDB)
-        Post.removeLike
+    if (likeDislikesExits === POST_LIKE.ALREDY_LIKED) {
+      if (likes) {
+        await this.postDatabase.removeLikeDislike(likeOrDislike)
+        posts.removeLike()
       } else {
-        await this.postDatabase.updateLikeDislike(likesDislikeDB)
-        Post.removeLike
-        Post.addDislike()
+        await this.postDatabase.updateLikeDislike(likeOrDislike)
+        posts.removeLike()
+        posts.addDisLike()
 
       }
-    } else if (likeDislikesExits === POST_LIKE.ALREADY_LIKED) {
-      if (like === false) {
-        await this.postDatabase.removeLikeDislike(likesDislikeDB)
-        Post.removeLikeDislike()
+    } else if (likeDislikesExits === POST_LIKE.ALREDY_DISLIKED) {
+      if (likes === false) {
+        await this.postDatabase.removeLikeDislike(likeOrDislike)
+        posts.removeDisLike()
       } else {
-        await this.postDatabase.updateLikeDislike(likesDislikeDB)
-        Post.removeLikeDislike()
-        Post.addLike()
+        await this.postDatabase.updateLikeDislike(likeOrDislike)
+        posts.removeDisLike()
+        posts.addLike()
       }
     } else {
-      await this.postDatabase.insertLikeDislike(likesDislikeDB)
-      like ? Post.addLike() : Post.addDislike()
+      await this.postDatabase.insertLikeDislike(likeOrDislike)
+      likes ? posts.addLike() : posts.addDisLike()
     }
 
-    const updatePostDB = Post.toDBModel()
-    await this.PostDatabase.updatePost(updatePostDB)
+    const updatePostDB = posts.toDBModel()
+    await this.postDatabase.updatePost(updatePostDB)
 
     const output: LikeOrDislikeOuputDTO = undefined
     return output
@@ -235,26 +305,27 @@ export class ProductBusiness {
     const payload = this.tokenManager.getPayload(token)
 
     if(!payload){
-      throw new Error()
+      throw new UnathorizedError()
     }
 
-    const id = this.idGenerator()
+    const id = this.idGenerator.generate()
 
     const post = new Post(
       id,
       name,
       0,
       0,
-     // new.Date().toISOString(),
+     new Date().toISOString(),
+     new Date().toISOString(),
      payload.id,
      payload.name
     )
 
 
-    const PostDB = Post.toDBModel()
-    await this.postDatabase.insertPost(PostDB)
+    const PostsDB = post.toDBModel()
+    await this.postDatabase.insertPost(PostsDB)
 
-    const output: CreatePostInputDTO = undefined
+    const output : CreatePostOutputDTO = undefined
     return output
     
 
